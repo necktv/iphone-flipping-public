@@ -2,12 +2,13 @@ import { z } from 'zod';
 
 // Enum per Modelli iPhone
 export const IphoneModelEnum = z.enum([
+  'IPHONE_SE_2', 'IPHONE_SE_3',
   'IPHONE_11', 'IPHONE_11_PRO', 'IPHONE_11_PRO_MAX',
   'IPHONE_12_MINI', 'IPHONE_12', 'IPHONE_12_PRO', 'IPHONE_12_PRO_MAX',
   'IPHONE_13_MINI', 'IPHONE_13', 'IPHONE_13_PRO', 'IPHONE_13_PRO_MAX',
   'IPHONE_14', 'IPHONE_14_PLUS', 'IPHONE_14_PRO', 'IPHONE_14_PRO_MAX',
   'IPHONE_15', 'IPHONE_15_PLUS', 'IPHONE_15_PRO', 'IPHONE_15_PRO_MAX',
-  'IPHONE_16', 'IPHONE_16_PLUS', 'IPHONE_16_PRO', 'IPHONE_16_PRO_MAX',
+  'IPHONE_16E', 'IPHONE_16', 'IPHONE_16_PLUS', 'IPHONE_16_PRO', 'IPHONE_16_PRO_MAX',
   'UNKNOWN'
 ]);
 export type IphoneModel = z.infer<typeof IphoneModelEnum>;
