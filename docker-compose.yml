@@ -126,6 +126,7 @@ services:
       - OPENVPN_USER=${PROTONVPN_USER}
       - OPENVPN_PASSWORD=${PROTONVPN_PASSWORD}
       - SERVER_COUNTRIES=Netherlands
+      - SERVER_TIERS=0
       - HTTPPROXY=on
     ports:
       - 8888:8888/tcp
