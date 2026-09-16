@@ -113,6 +113,28 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      gluetun:
+        condition: service_healthy
+
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - OPENVPN_USER=${PROTONVPN_USER}
+      - OPENVPN_PASSWORD=${PROTONVPN_PASSWORD}
+      - SERVER_COUNTRIES=Netherlands
+      - HTTPPROXY=on
+    ports:
+      - 8888:8888/tcp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "https://ipinfo.io"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:
