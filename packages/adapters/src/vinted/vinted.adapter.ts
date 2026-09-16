@@ -84,16 +84,6 @@ export class VintedAdapter implements MarketplaceAdapter {
     try {
       for (let p = 1; p <= maxPages; p++) {
         const searchUrl = this.buildSearchUrl(query, minPrice, maxPrice, p);
-        
-        // Risparmio estremo crediti ScraperAPI: Blocchiamo immagini, css e tracking
-        await page.route('**/*', (route) => {
-          const type = route.request().resourceType();
-          if (['image', 'media', 'font', 'stylesheet', 'other'].includes(type)) {
-            route.abort();
-          } else {
-            route.continue();
-          }
-        });
 
         // Strategia 1: Intercettazione risposta Network dell'endpoint API Vinted
         let interceptedItems: VintedItem[] = [];
