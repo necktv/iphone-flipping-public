@@ -1,4 +1,9 @@
-import { chromium, Browser, Page } from 'playwright';
+import { Browser, Page } from 'playwright';
+import { chromium } from 'playwright-extra';
+import stealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+chromium.use(stealthPlugin());
+
 import { RawListing, RawListingSchema } from '@iphone-flipping/core';
 import { FetchQueryOptions, MarketplaceAdapter } from '../base.adapter.js';
 import { VintedCatalogResponseSchema, VintedItem } from './vinted.types.js';

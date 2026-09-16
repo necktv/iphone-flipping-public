@@ -125,7 +125,9 @@ CREATE TABLE IF NOT EXISTS market_benchmarks (
   min_price NUMERIC(10, 2) NOT NULL,
   max_price NUMERIC(10, 2) NOT NULL,
   sample_count INT NOT NULL DEFAULT 0,
-  
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Tabella Catalogo Annunci Venduti su Vinted Italia
 CREATE TABLE IF NOT EXISTS vinted_sold_catalog (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
