@@ -12,7 +12,11 @@ export class VintedAdapter implements MarketplaceAdapter {
 
   async checkHealth(): Promise<boolean> {
     try {
-      const browser = await chromium.launch({ headless: true });
+      const launchOptions: any = { headless: this.headless };
+      if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+      }
+      const browser = await chromium.launch(launchOptions);
       await browser.close();
       return true;
     } catch (err) {
@@ -31,10 +35,15 @@ export class VintedAdapter implements MarketplaceAdapter {
 
     const listings: RawListing[] = [];
 
-    this.browser = await chromium.launch({
+    const launchOptions: any = {
       headless: this.headless,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    };
+    if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+    }
+    
+    this.browser = await chromium.launch(launchOptions);
 
     const context = await this.browser.newContext({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
