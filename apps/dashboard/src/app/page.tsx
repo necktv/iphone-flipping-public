@@ -34,7 +34,16 @@ export default function DashboardHome() {
   const [feedStorage, setFeedStorage] = useState('');
   const [feedMaxPrice, setFeedMaxPrice] = useState('');
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const [apiUrl, setApiUrl] = useState('http://localhost:4000');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host !== 'localhost') {
+        setApiUrl(`http://${host}:4000`);
+      }
+    }
+  }, []);
 
   const fetchListings = async () => {
     setLoading(true);
@@ -74,7 +83,7 @@ export default function DashboardHome() {
     if (activeTab === 'FEED') fetchListings();
     if (activeTab === 'ALERTS') fetchOpportunities();
     if (activeTab === 'MARKET') fetchMarket();
-  }, [activeTab, feedModel, feedStorage, feedMaxPrice, alertStatus]);
+  }, [activeTab, feedModel, feedStorage, feedMaxPrice, alertStatus, apiUrl]);
 
   const updateOpportunityStatus = async (id: string, newStatus: string) => {
     await fetch(`${apiUrl}/api/opportunities/${id}/status`, {
