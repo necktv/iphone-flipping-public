@@ -1,0 +1,20 @@
+{
+  "name": "iphone-flipping-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-marketplace iPhone flipping and analysis system",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev:api": "npm --workspace=apps/api run dev",
+    "dev:dashboard": "npm --workspace=apps/dashboard run dev",
+    "dev:scanner": "npm --workspace=apps/scanner run dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

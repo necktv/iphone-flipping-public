@@ -1,0 +1,24 @@
+{
+  "name": "scanner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npx tsc",
+    "start": "node dist/scanner.js",
+    "dev": "tsx watch src/scanner.ts"
+  },
+  "dependencies": {
+    "@iphone-flipping/adapters": "1.0.0",
+    "@iphone-flipping/core": "1.0.0",
+    "@iphone-flipping/database": "1.0.0",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.10.5",
+    "typescript": "^5.4.5"
+  }
+}
