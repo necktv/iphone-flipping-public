@@ -106,6 +106,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
       - TELEGRAM_ENABLED=${TELEGRAM_ENABLED:-true}
+      - PROXY_URL=${PROXY_URL:-}
       - PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
     depends_on:
       postgres:
