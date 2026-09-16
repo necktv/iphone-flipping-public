@@ -72,6 +72,8 @@ export class VintedAdapter implements MarketplaceAdapter {
     const context = await this.browser.newContext({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
       locale: 'it-IT',
+      timezoneId: 'Europe/Rome',
+      ignoreHTTPSErrors: true,
       extraHTTPHeaders: {
         'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
       },
