@@ -49,8 +49,22 @@ export class VintedAdapter implements MarketplaceAdapter {
     }
 
     if (process.env.PROXY_URL) {
-      launchOptions.proxy = { server: process.env.PROXY_URL };
-      console.log(`[VintedAdapter] Utilizzo proxy per la connessione...`);
+      try {
+        const proxyUrl = new URL(process.env.PROXY_URL);
+        const proxyConfig: any = {
+          server: `${proxyUrl.protocol}//${proxyUrl.hostname}:${proxyUrl.port}`,
+        };
+        if (proxyUrl.username) {
+          proxyConfig.username = decodeURIComponent(proxyUrl.username);
+        }
+        if (proxyUrl.password) {
+          proxyConfig.password = decodeURIComponent(proxyUrl.password);
+        }
+        launchOptions.proxy = proxyConfig;
+        console.log(`[VintedAdapter] Utilizzo proxy per la connessione...`);
+      } catch (e) {
+        console.error(`[VintedAdapter] Errore parsing PROXY_URL:`, e);
+      }
     }
     
     this.browser = await chromium.launch(launchOptions);
