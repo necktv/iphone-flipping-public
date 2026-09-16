@@ -51,7 +51,7 @@ export function loadConfig(): ScannerConfig {
     maxSearchPrice: parseInt(process.env.SCAN_MAX_PRICE || '1200', 10),
     minSearchPrice: parseInt(process.env.SCAN_MIN_PRICE || '80', 10),
     maxPagesPerQuery: parseInt(process.env.SCAN_MAX_PAGES || '2', 10),
-    searchQueries: (process.env.SCAN_QUERIES || 'iphone 13,iphone 14,iphone 15,iphone 16').split(',').map(s => s.trim()),
+    searchQueries: (process.env.SCAN_QUERIES || 'iphone 13').split(',').map(s => s.trim()),
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
     telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
     telegramEnabled: process.env.TELEGRAM_ENABLED !== 'false' && !!process.env.TELEGRAM_BOT_TOKEN,

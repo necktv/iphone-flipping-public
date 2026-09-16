@@ -55,13 +55,16 @@ async function runScanCycle(): Promise<void> {
       console.log(`\n[Scanner] 📱 Scansione: "${query}" (${i + 1}/${config.searchQueries.length})`);
 
       const adapter = new VintedAdapter(true); // headless = true in produzione
-
-      const rawListings = await adapter.fetchLatestListings({
+      
+      let rawListings = await adapter.fetchLatestListings({
         searchQuery: query,
         minPrice: config.minSearchPrice,
         maxPrice: config.maxSearchPrice,
         maxPages: config.maxPagesPerQuery,
       });
+
+      // L'utente ha chiesto esplicitamente di scansionare solo i primi 10 annunci
+      rawListings = rawListings.slice(0, 10);
 
       console.log(`[Scanner] 📋 Trovati ${rawListings.length} annunci per "${query}"`);
 
