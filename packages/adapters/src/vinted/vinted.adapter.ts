@@ -78,7 +78,17 @@ export class VintedAdapter implements MarketplaceAdapter {
 
         page.on('response', responseHandler);
 
-        await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 45000 });
+        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+        
+        // Wait specifically for at least one product item to appear, or a short timeout
+        try {
+          await page.waitForSelector('[data-testid^="product-item-id-"]', { state: 'attached', timeout: 10000 });
+        } catch (e) {
+          console.warn(`[VintedAdapter] Timeout attesa elementi, provo ad analizzare il DOM ugualmente...`);
+        }
+        
+        // Aspettiamo un paio di secondi extra per far finire le API interne di react/vinted
+        await page.waitForTimeout(2000);
 
         page.off('response', responseHandler);
 
