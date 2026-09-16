@@ -167,6 +167,59 @@ app.get('/api/opportunities', async (req, res) => {
   }
 });
 
+// 2b. Lista Tutti gli Annunci (Raw Feed)
+app.get('/api/listings', async (req, res) => {
+  try {
+    const { model, storageGb, maxPrice, condition } = req.query;
+    let query = `
+      SELECT 
+        id as listing_id,
+        marketplace,
+        title,
+        description,
+        url,
+        price,
+        model,
+        storage_gb,
+        battery_health_pct,
+        condition,
+        images,
+        published_at,
+        created_at
+      FROM listings
+      WHERE 1=1
+    `;
+    
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (model) {
+      query += ` AND model = $${paramIndex++}`;
+      params.push(model);
+    }
+    if (storageGb) {
+      query += ` AND storage_gb = $${paramIndex++}`;
+      params.push(Number(storageGb));
+    }
+    if (maxPrice) {
+      query += ` AND price <= $${paramIndex++}`;
+      params.push(Number(maxPrice));
+    }
+    if (condition) {
+      query += ` AND condition = $${paramIndex++}`;
+      params.push(condition);
+    }
+
+    query += ` ORDER BY published_at DESC NULLS LAST, created_at DESC LIMIT 200`;
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, count: result.rowCount, data: result.rows });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
 // 3. Aggiorna Stato Opportunità (BUY / PASS / REVIEW)
 app.patch('/api/opportunities/:id/status', async (req, res) => {
   try {

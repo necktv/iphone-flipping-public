@@ -3,365 +3,225 @@
 import React, { useEffect, useState } from 'react';
 
 // --- INTERFACES ---
-interface ListinoSummary {
-  model: string;
-  storage_gb: number;
-  condition: string;
-  total_sold_samples: string;
-  avg_sold_price: string;
-  median_sold_price: string;
-  min_sold_price: string;
-  max_sold_price: string;
-}
-
-interface SoldItem {
-  id: string;
-  vinted_item_id: string;
-  url: string;
-  title: string;
-  sold_price: number;
-  model: string;
-  storage_gb: number | null;
-  battery_health_pct: number | null;
-  condition: string;
-  has_original_box: boolean;
-  has_receipt_or_invoice: boolean;
-  sold_at: string;
-}
-
-interface Opportunity {
-  opportunity_id: string;
-  fair_value: string;
-  quick_sale_value: string;
-  estimated_profit: string;
-  roi_percentage: string;
-  confidence_score: string;
-  risk_score: string;
-  status: string;
-  listing_id: string;
-  marketplace: string;
-  title: string;
-  url: string;
-  price: string;
-  model: string;
-  storage_gb: number | null;
-  battery_health_pct: number | null;
-  condition: string;
-  images: string[];
-}
+interface ListinoSummary { model: string; storage_gb: number; condition: string; total_sold_samples: string; avg_sold_price: string; median_sold_price: string; min_sold_price: string; max_sold_price: string; }
+interface SoldItem { id: string; url: string; title: string; sold_price: number; model: string; storage_gb: number | null; battery_health_pct: number | null; condition: string; has_original_box: boolean; has_receipt_or_invoice: boolean; sold_at: string; }
+interface Opportunity { opportunity_id: string; fair_value: string; quick_sale_value: string; estimated_profit: string; roi_percentage: string; status: string; marketplace: string; title: string; url: string; price: string; model: string; storage_gb: number | null; battery_health_pct: number | null; condition: string; images: string[]; }
+interface RawListing { listing_id: string; marketplace: string; title: string; description: string; url: string; price: string; model: string; storage_gb: number | null; battery_health_pct: number | null; condition: string; images: string[]; published_at: string; created_at: string; }
 
 const IPHONE_MODELS = [
   { label: 'Tutti i Modelli', value: '' },
-  { label: 'iPhone 13', value: 'IPHONE_13' },
-  { label: 'iPhone 13 Mini', value: 'IPHONE_13_MINI' },
-  { label: 'iPhone 13 Pro', value: 'IPHONE_13_PRO' },
-  { label: 'iPhone 13 Pro Max', value: 'IPHONE_13_PRO_MAX' },
-  { label: 'iPhone 14', value: 'IPHONE_14' },
-  { label: 'iPhone 14 Plus', value: 'IPHONE_14_PLUS' },
-  { label: 'iPhone 14 Pro', value: 'IPHONE_14_PRO' },
-  { label: 'iPhone 14 Pro Max', value: 'IPHONE_14_PRO_MAX' },
-  { label: 'iPhone 15', value: 'IPHONE_15' },
-  { label: 'iPhone 15 Plus', value: 'IPHONE_15_PLUS' },
-  { label: 'iPhone 15 Pro', value: 'IPHONE_15_PRO' },
-  { label: 'iPhone 15 Pro Max', value: 'IPHONE_15_PRO_MAX' },
-  { label: 'iPhone 16', value: 'IPHONE_16' },
-  { label: 'iPhone 16 Plus', value: 'IPHONE_16_PLUS' },
-  { label: 'iPhone 16 Pro', value: 'IPHONE_16_PRO' },
-  { label: 'iPhone 16 Pro Max', value: 'IPHONE_16_PRO_MAX' },
+  { label: 'iPhone 13', value: 'IPHONE_13' }, { label: 'iPhone 13 Pro', value: 'IPHONE_13_PRO' }, { label: 'iPhone 13 Pro Max', value: 'IPHONE_13_PRO_MAX' },
+  { label: 'iPhone 14', value: 'IPHONE_14' }, { label: 'iPhone 14 Pro', value: 'IPHONE_14_PRO' }, { label: 'iPhone 14 Pro Max', value: 'IPHONE_14_PRO_MAX' },
+  { label: 'iPhone 15', value: 'IPHONE_15' }, { label: 'iPhone 15 Pro', value: 'IPHONE_15_PRO' }, { label: 'iPhone 15 Pro Max', value: 'IPHONE_15_PRO_MAX' },
+  { label: 'iPhone 16', value: 'IPHONE_16' }, { label: 'iPhone 16 Pro', value: 'IPHONE_16_PRO' }, { label: 'iPhone 16 Pro Max', value: 'IPHONE_16_PRO_MAX' },
 ];
 
 export default function DashboardHome() {
-  const [activeTab, setActiveTab] = useState<'ALERTS' | 'MARKET'>('ALERTS');
+  const [activeTab, setActiveTab] = useState<'FEED' | 'ALERTS' | 'MARKET'>('FEED');
+  const [loading, setLoading] = useState(false);
 
   // MARKET STATE
   const [summary, setSummary] = useState<ListinoSummary[]>([]);
-  const [items, setItems] = useState<SoldItem[]>([]);
-  const [loadingMarket, setLoadingMarket] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [selectedStorage, setSelectedStorage] = useState('');
+  const [soldItems, setSoldItems] = useState<SoldItem[]>([]);
 
   // ALERTS STATE
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [alertStatus, setAlertStatus] = useState('NEW');
 
-  // --- API CALLS ---
-  const fetchListino = async () => {
-    try {
-      setLoadingMarket(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      let url = `${apiUrl}/api/listino?`;
-      if (selectedModel) url += `model=${selectedModel}&`;
-      if (selectedStorage) url += `storageGb=${selectedStorage}&`;
+  // LIVE FEED STATE
+  const [listings, setListings] = useState<RawListing[]>([]);
+  const [feedModel, setFeedModel] = useState('');
+  const [feedStorage, setFeedStorage] = useState('');
+  const [feedMaxPrice, setFeedMaxPrice] = useState('');
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+  const fetchListings = async () => {
+    setLoading(true);
+    let url = `${apiUrl}/api/listings?`;
+    if (feedModel) url += `model=${feedModel}&`;
+    if (feedStorage) url += `storageGb=${feedStorage}&`;
+    if (feedMaxPrice) url += `maxPrice=${feedMaxPrice}&`;
+    try {
       const res = await fetch(url);
       const json = await res.json();
-      if (json.success) {
-        setSummary(json.summary);
-        setItems(json.items);
-      }
-    } catch (err) {
-      console.error('Errore caricamento listino:', err);
-    } finally {
-      setLoadingMarket(false);
-    }
+      if (json.success) setListings(json.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   const fetchOpportunities = async () => {
+    setLoading(true);
     try {
-      setLoadingAlerts(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const url = `${apiUrl}/api/opportunities?status=${alertStatus}`;
-      
+      const res = await fetch(`${apiUrl}/api/opportunities?status=${alertStatus}`);
+      const json = await res.json();
+      if (json.success) setOpportunities(json.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
+  const fetchMarket = async () => {
+    setLoading(true);
+    let url = `${apiUrl}/api/listino?`;
+    if (feedModel) url += `model=${feedModel}&`;
+    if (feedStorage) url += `storageGb=${feedStorage}&`;
+    try {
       const res = await fetch(url);
       const json = await res.json();
-      if (json.success) {
-        setOpportunities(json.data);
-      }
-    } catch (err) {
-      console.error('Errore caricamento opportunities:', err);
-    } finally {
-      setLoadingAlerts(false);
-    }
+      if (json.success) { setSummary(json.summary); setSoldItems(json.items); }
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    if (activeTab === 'FEED') fetchListings();
+    if (activeTab === 'ALERTS') fetchOpportunities();
+    if (activeTab === 'MARKET') fetchMarket();
+  }, [activeTab, feedModel, feedStorage, feedMaxPrice, alertStatus]);
 
   const updateOpportunityStatus = async (id: string, newStatus: string) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      await fetch(`${apiUrl}/api/opportunities/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      fetchOpportunities();
-    } catch (err) {
-      console.error('Errore aggiornamento status:', err);
-    }
+    await fetch(`${apiUrl}/api/opportunities/${id}/status`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus })
+    });
+    fetchOpportunities();
   };
-
-  const triggerScan = async () => {
-    try {
-      setScanning(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      await fetch(`${apiUrl}/api/listino/scan`, { method: 'POST' });
-      await fetchListino();
-    } catch (err) {
-      console.error('Errore scansione venduti:', err);
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  const downloadCsv = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-    window.open(`${apiUrl}/api/listino/export`, '_blank');
-  };
-
-  // --- EFFECTS ---
-  useEffect(() => {
-    if (activeTab === 'MARKET') fetchListino();
-  }, [activeTab, selectedModel, selectedStorage]);
-
-  useEffect(() => {
-    if (activeTab === 'ALERTS') fetchOpportunities();
-  }, [activeTab, alertStatus]);
 
   // --- RENDERERS ---
-  const renderAlertsTab = () => (
-    <div>
-      <section style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-        <label style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Filtra Stato:</label>
-        <select
-          value={alertStatus}
-          onChange={(e) => setAlertStatus(e.target.value)}
-          style={{ background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '8px 12px', borderRadius: '6px' }}
-        >
-          <option value="NEW">Nuovi (NEW)</option>
-          <option value="REVIEW">In Revisione (REVIEW)</option>
-          <option value="BUY">Da Comprare (BUY)</option>
-          <option value="PASS">Scartati (PASS)</option>
-          <option value="PURCHASED">Acquistati (PURCHASED)</option>
-        </select>
-        <button className="btn" onClick={fetchOpportunities} style={{ marginLeft: 'auto' }}>🔄 Aggiorna</button>
-      </section>
-
-      {loadingAlerts ? (
-        <p>Caricamento alert in corso...</p>
-      ) : opportunities.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px', background: 'var(--bg-card)', borderRadius: '12px' }}>
-          <h3>Nessun alert per lo stato "{alertStatus}"</h3>
-          <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            Lo Scanner Automatico aggiungerà qui le nuove opportunità non appena ne troverà.
-          </p>
-        </div>
-      ) : (
-        <div className="grid">
-          {opportunities.map(opp => (
-            <div className="card" key={opp.opportunity_id} style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h3 style={{ fontSize: '16px', color: '#fff', marginBottom: '4px' }}>
-                    <a href={opp.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-cyan)', textDecoration: 'none' }}>
-                      {opp.title}
-                    </a>
-                  </h3>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {opp.model} • {opp.storage_gb ? `${opp.storage_gb}GB` : 'N/A'} • {opp.condition}
-                  </div>
-                </div>
-                <div style={{ background: '#0f172a', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
-                  {opp.marketplace.toUpperCase()}
-                </div>
-              </div>
-
-              <div className="metrics" style={{ marginTop: '16px' }}>
-                <div className="metric-item">
-                  <span className="metric-label">Prezzo Attuale</span>
-                  <span className="metric-value" style={{ color: '#fff' }}>€{parseFloat(opp.price).toFixed(2)}</span>
-                </div>
-                <div className="metric-item">
-                  <span className="metric-label">Fair Value</span>
-                  <span className="metric-value">€{parseFloat(opp.fair_value).toFixed(2)}</span>
-                </div>
-                <div className="metric-item">
-                  <span className="metric-label">Profitto Stimato</span>
-                  <span className="metric-value val-green">€{parseFloat(opp.estimated_profit).toFixed(2)}</span>
-                </div>
-                <div className="metric-item">
-                  <span className="metric-label">ROI</span>
-                  <span className="metric-value val-cyan">+{parseFloat(opp.roi_percentage).toFixed(1)}%</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '16px' }}>
-                <button className="btn" style={{ flex: 1, padding: '6px', fontSize: '12px', background: '#3b82f6', color: '#fff' }} onClick={() => updateOpportunityStatus(opp.opportunity_id, 'REVIEW')}>
-                  🔎 Review
-                </button>
-                <button className="btn" style={{ flex: 1, padding: '6px', fontSize: '12px', background: '#10b981', color: '#fff' }} onClick={() => updateOpportunityStatus(opp.opportunity_id, 'BUY')}>
-                  🛒 Buy
-                </button>
-                <button className="btn" style={{ flex: 1, padding: '6px', fontSize: '12px', background: '#ef4444', color: '#fff' }} onClick={() => updateOpportunityStatus(opp.opportunity_id, 'PASS')}>
-                  ❌ Pass
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderMarketTab = () => (
-    <div>
-      <section style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+  const renderFeedTab = () => (
+    <div className="space-y-6">
+      <div className="bg-surface p-4 rounded-xl border border-slate-700 flex flex-wrap gap-4 items-end">
         <div>
-          <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Modello iPhone:</label>
-          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} style={{ background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '8px 12px', borderRadius: '6px' }}>
+          <label className="block text-xs text-muted mb-1 uppercase tracking-wider">Modello</label>
+          <select value={feedModel} onChange={(e) => setFeedModel(e.target.value)} className="bg-background text-slate-100 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary w-48">
             {IPHONE_MODELS.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
           </select>
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Taglio di Memoria:</label>
-          <select value={selectedStorage} onChange={(e) => setSelectedStorage(e.target.value)} style={{ background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '8px 12px', borderRadius: '6px' }}>
-            <option value="">Tutti i Tagli</option>
-            <option value="128">128 GB</option>
-            <option value="256">256 GB</option>
-            <option value="512">512 GB</option>
-            <option value="1024">1 TB</option>
+          <label className="block text-xs text-muted mb-1 uppercase tracking-wider">Memoria</label>
+          <select value={feedStorage} onChange={(e) => setFeedStorage(e.target.value)} className="bg-background text-slate-100 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary w-32">
+            <option value="">Tutti</option><option value="128">128 GB</option><option value="256">256 GB</option><option value="512">512 GB</option><option value="1024">1 TB</option>
           </select>
         </div>
-      </section>
+        <div>
+          <label className="block text-xs text-muted mb-1 uppercase tracking-wider">Prezzo Max (€)</label>
+          <input type="number" placeholder="Es. 400" value={feedMaxPrice} onChange={(e) => setFeedMaxPrice(e.target.value)} className="bg-background text-slate-100 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary w-32" />
+        </div>
+        <button onClick={fetchListings} className="bg-primary hover:bg-sky-400 text-slate-900 font-semibold px-6 py-2 rounded-lg transition-colors ml-auto text-sm">
+          Cerca
+        </button>
+      </div>
 
-      {summary.length > 0 && (
-        <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Riepilogo Prezzi di Vendita</h2>
-          <div className="grid">
-            {summary.map((sum, i) => (
-              <div className="card" key={i}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {loading ? <p className="text-muted">Caricamento...</p> : listings.map((item) => (
+          <div key={item.listing_id} className="bg-surface rounded-xl border border-slate-700 overflow-hidden hover:border-primary transition-colors flex flex-col">
+            <div className="p-4 flex-grow">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-xs font-bold px-2 py-1 bg-slate-800 text-slate-300 rounded uppercase">{item.marketplace}</span>
+                <span className="text-xl font-bold text-success">€{parseFloat(item.price).toFixed(2)}</span>
+              </div>
+              <h3 className="text-slate-100 font-semibold text-lg line-clamp-2 leading-tight mb-2">
+                <a href={item.url} target="_blank" className="hover:text-primary transition-colors">{item.title}</a>
+              </h3>
+              <div className="flex flex-wrap gap-2 text-xs text-slate-300 mt-4">
+                <span className="bg-slate-800 px-2 py-1 rounded">{item.model !== 'UNKNOWN' ? item.model : 'Modello Sconosciuto'}</span>
+                {item.storage_gb && <span className="bg-slate-800 px-2 py-1 rounded">{item.storage_gb}GB</span>}
+                {item.battery_health_pct && <span className="bg-slate-800 px-2 py-1 rounded">🔋 {item.battery_health_pct}%</span>}
+                <span className="bg-slate-800 px-2 py-1 rounded">{item.condition}</span>
+              </div>
+            </div>
+            <div className="bg-slate-800/50 p-3 text-xs text-muted flex justify-between items-center border-t border-slate-700">
+              <span>{new Date(item.published_at || item.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+              <a href={item.url} target="_blank" className="text-primary hover:underline font-semibold">Vedi Annuncio ↗</a>
+            </div>
+          </div>
+        ))}
+      </div>
+      {!loading && listings.length === 0 && <div className="text-center py-20 text-slate-500">Nessun annuncio trovato per questi filtri.</div>}
+    </div>
+  );
+
+  const renderAlertsTab = () => (
+    <div className="space-y-6">
+      <div className="flex gap-4">
+        {['NEW', 'REVIEW', 'BUY', 'PASS'].map(s => (
+          <button key={s} onClick={() => setAlertStatus(s)} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${alertStatus === s ? 'bg-primary text-slate-900' : 'bg-surface text-slate-400 hover:bg-slate-700'}`}>
+            {s}
+          </button>
+        ))}
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {loading ? <p className="text-muted">Caricamento...</p> : opportunities.map(opp => (
+          <div key={opp.opportunity_id} className="bg-surface rounded-xl border border-primary/50 shadow-[0_0_15px_rgba(56,189,248,0.1)] overflow-hidden flex flex-col relative">
+            {/* Ribbon ROI */}
+            <div className="absolute top-0 right-0 bg-primary text-slate-900 text-xs font-bold px-3 py-1 rounded-bl-lg z-10">
+              ROI +{parseFloat(opp.roi_percentage).toFixed(0)}%
+            </div>
+            
+            <div className="p-5 flex-grow mt-2">
+              <h3 className="text-slate-100 font-bold text-lg leading-tight mb-4">
+                <a href={opp.url} target="_blank" className="hover:text-primary transition-colors">{opp.title}</a>
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
                 <div>
-                  <span style={{ fontSize: '12px', color: 'var(--accent-cyan)', fontWeight: 700 }}>{sum.model} - {sum.storage_gb}GB</span>
-                  <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '4px' }}>Condizione: {sum.condition}</p>
-                  <div className="metrics" style={{ marginTop: '12px' }}>
-                    <div className="metric-item"><span className="metric-label">Mediano</span><span className="metric-value val-green">€{sum.median_sold_price}</span></div>
-                    <div className="metric-item"><span className="metric-label">Medio</span><span className="metric-value val-cyan">€{sum.avg_sold_price}</span></div>
-                    <div className="metric-item"><span className="metric-label">Campioni</span><span className="metric-value val-amber">{sum.total_sold_samples}</span></div>
-                  </div>
+                  <p className="text-xs text-muted mb-1">Prezzo Richiesto</p>
+                  <p className="text-xl font-bold text-white">€{parseFloat(opp.price).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted mb-1">Valore Mercato</p>
+                  <p className="text-xl font-bold text-slate-400 line-through">€{parseFloat(opp.fair_value).toFixed(2)}</p>
+                </div>
+                <div className="col-span-2 border-t border-slate-700/50 pt-3">
+                  <p className="text-xs text-muted mb-1">Profitto Stimato Netto</p>
+                  <p className="text-2xl font-black text-success">€{parseFloat(opp.estimated_profit).toFixed(2)}</p>
                 </div>
               </div>
-            ))}
+            </div>
+            
+            <div className="flex bg-slate-800 border-t border-slate-700">
+              <button onClick={() => updateOpportunityStatus(opp.opportunity_id, 'REVIEW')} className="flex-1 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border-r border-slate-700">Da Valutare</button>
+              <button onClick={() => updateOpportunityStatus(opp.opportunity_id, 'BUY')} className="flex-1 py-3 text-sm font-bold text-success hover:bg-success hover:text-slate-900 transition-colors border-r border-slate-700">COMPRA</button>
+              <button onClick={() => updateOpportunityStatus(opp.opportunity_id, 'PASS')} className="flex-1 py-3 text-sm font-semibold text-danger hover:bg-danger hover:text-white transition-colors">Scarta</button>
+            </div>
           </div>
-        </section>
-      )}
-
-      <section>
-        <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Catalogo Dettagliato Annunci Venduti</h2>
-        {loadingMarket ? <p>Caricamento listino in corso...</p> : items.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px', background: 'var(--bg-card)', borderRadius: '12px' }}>
-            <h3>Nessun annuncio catalogato</h3>
-          </div>
-        ) : (
-          <div style={{ background: 'var(--bg-card)', borderRadius: '12px', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ background: '#0f172a', borderBottom: '1px solid #334155', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '12px 16px' }}>Modello</th>
-                  <th style={{ padding: '12px 16px' }}>Prezzo</th>
-                  <th style={{ padding: '12px 16px' }}>Condizione</th>
-                  <th style={{ padding: '12px 16px' }}>Link</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid #334155' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--accent-cyan)' }}>{item.model} {item.storage_gb ? `(${item.storage_gb}GB)` : ''}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--accent-green)' }}>€{item.sold_price}</td>
-                    <td style={{ padding: '12px 16px' }}>{item.condition}</td>
-                    <td style={{ padding: '12px 16px' }}><a href={item.url} target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8' }}>Vedi su Vinted</a></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+        ))}
+      </div>
+      {!loading && opportunities.length === 0 && <div className="text-center py-20 text-slate-500">Nessuna opportunità in questo stato.</div>}
     </div>
   );
 
   return (
-    <main>
-      <header className="header" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 className="title">iPhone Flipping Dashboard</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Monitoraggio affari e storico mercato in tempo reale.</p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="btn" style={{ background: '#10b981', color: '#fff' }} onClick={downloadCsv}>Esporta CSV</button>
-            <button className="btn" onClick={triggerScan} disabled={scanning}>{scanning ? 'Catalogazione in corso...' : 'Aggiorna Storico Vinted'}</button>
-          </div>
+    <div className="max-w-7xl mx-auto p-4 md:p-8">
+      <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-700 pb-6">
+        <div>
+          <h1 className="text-3xl font-black text-white tracking-tight mb-2 flex items-center gap-3">
+            <span className="bg-primary w-3 h-8 rounded-sm inline-block"></span>
+            Flipping Pro Dashboard
+          </h1>
+          <p className="text-muted text-sm max-w-xl">Scanner automatico Vinted per iPhone. Filtra gli annunci in tempo reale o monitora le occasioni d'oro segnalate dal sistema.</p>
         </div>
         
-        {/* TAB NAVIGATION */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #334155' }}>
-          <button 
-            style={{ padding: '12px 24px', background: 'transparent', border: 'none', borderBottom: activeTab === 'ALERTS' ? '2px solid var(--accent-cyan)' : '2px solid transparent', color: activeTab === 'ALERTS' ? 'var(--accent-cyan)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
-            onClick={() => setActiveTab('ALERTS')}
-          >
-            🚨 Scanner Alerts
-          </button>
-          <button 
-            style={{ padding: '12px 24px', background: 'transparent', border: 'none', borderBottom: activeTab === 'MARKET' ? '2px solid var(--accent-cyan)' : '2px solid transparent', color: activeTab === 'MARKET' ? 'var(--accent-cyan)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
-            onClick={() => setActiveTab('MARKET')}
-          >
-            📊 Listino Venduti
-          </button>
+        <div className="flex bg-surface rounded-lg p-1 border border-slate-700">
+          {[
+            { id: 'FEED', label: 'Tutti gli Annunci' },
+            { id: 'ALERTS', label: '🔥 Affari (Alerts)' },
+            { id: 'MARKET', label: 'Storico Mercato' }
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${activeTab === tab.id ? 'bg-primary text-slate-900 shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}>
+              {tab.label}
+            </button>
+          ))}
         </div>
       </header>
 
-      <div style={{ marginTop: '24px' }}>
-        {activeTab === 'ALERTS' ? renderAlertsTab() : renderMarketTab()}
-      </div>
-    </main>
+      <main>
+        {activeTab === 'FEED' && renderFeedTab()}
+        {activeTab === 'ALERTS' && renderAlertsTab()}
+        {activeTab === 'MARKET' && (
+          <div className="text-center py-20 bg-surface rounded-xl border border-slate-700">
+            <h2 className="text-xl text-slate-300 font-semibold mb-2">Sezione Storico Mercato</h2>
+            <p className="text-muted">Il listino dei telefoni venduti è attivo, ma per ora ci concentriamo sul Live Feed e gli Alerts.</p>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
