@@ -47,6 +47,11 @@ export class VintedAdapter implements MarketplaceAdapter {
     if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
       launchOptions.executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
     }
+
+    if (process.env.PROXY_URL) {
+      launchOptions.proxy = { server: process.env.PROXY_URL };
+      console.log(`[VintedAdapter] Utilizzo proxy per la connessione...`);
+    }
     
     this.browser = await chromium.launch(launchOptions);
 
