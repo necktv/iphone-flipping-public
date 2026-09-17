@@ -103,7 +103,9 @@ interface ProfitCalculation {
   totalCost: number;
   batteryCost: number;
   recommendedOffer: number;
+  maxBid: number;
   roiP25: number;
+  roiP50: number;
 }
 
 /** Calcola profitti e costi reali in base ai prezzi P25 / P50 dell'utente */
@@ -123,10 +125,24 @@ function calculateListingProfits(item: ScoredListing): ProfitCalculation | null 
     batteryResaleBoost = 30; // Valore aggiunto da batteria nuova
   }
 
-  const profitP25 = (p25 + batteryResaleBoost) - totalCost - batteryCost - RESELL_FEE;
-  const profitP50 = (p50 + batteryResaleBoost) - totalCost - batteryCost - RESELL_FEE;
+  const effectiveP25 = p25 + batteryResaleBoost;
+  const effectiveP50 = p50 + batteryResaleBoost;
+
+  const profitP25 = effectiveP25 - totalCost - batteryCost - RESELL_FEE;
+  const profitP50 = effectiveP50 - totalCost - batteryCost - RESELL_FEE;
+
   const roiP25 = (profitP25 / (totalCost + batteryCost)) * 100;
-  const recommendedOffer = Math.round(price * 0.85);
+  const roiP50 = (profitP50 / (totalCost + batteryCost)) * 100;
+
+  // CALCOLO MAXIMUM BID (Offerta Massima per garantire almeno 20% ROI su P50)
+  // Target ROI = 20% => Investimento Totale Max = effectiveP50 / 1.20
+  // Investimento Totale = MaxBid * 1.05 + 0.70 + 4.50 (spedizione) + batteryCost
+  // Quindi: MaxBid = ((effectiveP50 / 1.20) - 5.20 - batteryCost) / 1.05
+  const maxTotalInvestment = effectiveP50 / 1.20;
+  const rawMaxBid = ((maxTotalInvestment - (VINTED_PROTECTION_FIXED + ESTIMATED_SHIPPING) - batteryCost) / (1 + VINTED_PROTECTION_PCT));
+  const maxBid = Math.max(0, Math.floor(rawMaxBid));
+
+  const recommendedOffer = Math.min(Math.round(price * 0.85), maxBid > 0 ? maxBid : Math.round(price * 0.85));
 
   return {
     profitP25,
@@ -134,7 +150,9 @@ function calculateListingProfits(item: ScoredListing): ProfitCalculation | null 
     totalCost,
     batteryCost,
     recommendedOffer,
+    maxBid,
     roiP25,
+    roiP50,
   };
 }
 
@@ -298,20 +316,20 @@ export default function DashboardHome() {
               <div className="flex justify-between">
                 <span className="text-muted">Profitto Rapido (P25)</span>
                 <span className={`font-bold font-mono ${calc.profitP25 >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {calc.profitP25 >= 0 ? '+' : ''}€{calc.profitP25.toFixed(0)}
+                  {calc.profitP25 >= 0 ? '+' : ''}€{calc.profitP25.toFixed(0)} ({calc.roiP25.toFixed(0)}%)
                 </span>
               </div>
 
               <div className="flex justify-between">
                 <span className="text-muted">Profitto Normale (P50)</span>
                 <span className={`font-bold font-mono ${calc.profitP50 >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {calc.profitP50 >= 0 ? '+' : ''}€{calc.profitP50.toFixed(0)}
+                  {calc.profitP50 >= 0 ? '+' : ''}€{calc.profitP50.toFixed(0)} ({calc.roiP50.toFixed(0)}%)
                 </span>
               </div>
 
               <div className="flex justify-between border-t border-slate-700/50 pt-2">
-                <span className="text-muted">💡 Offerta Consigliata</span>
-                <span className="text-primary font-bold font-mono">€{calc.recommendedOffer}</span>
+                <span className="text-slate-200 font-semibold">🎯 Offerta Max (ROI 20%)</span>
+                <span className="text-emerald-400 font-black font-mono">€{calc.maxBid}</span>
               </div>
             </div>
           ) : (
