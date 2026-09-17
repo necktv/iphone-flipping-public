@@ -15,6 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./packages/database/migrations/002_price_history.sql:/docker-entrypoint-initdb.d/02_price_history.sql
+      - ./packages/database/migrations/003_user_pricing.sql:/docker-entrypoint-initdb.d/03_user_pricing.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-iphone_flipping}"]
       interval: 5s

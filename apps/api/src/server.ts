@@ -474,6 +474,154 @@ app.get('/api/listino/export', async (_req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// 10. USER PRICING — Listino Prezzi Personale (P50 + P25)
+// ═══════════════════════════════════════════════════════════════════
+
+// Leggi tutti i prezzi
+app.get('/api/pricing', async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, model, storage_gb, p50_price, p25_price, updated_at 
+       FROM user_pricing 
+       ORDER BY model, storage_gb`
+    );
+    res.json({ success: true, count: result.rowCount, data: result.rows });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Inserisci o aggiorna un prezzo (upsert)
+app.post('/api/pricing', async (req, res) => {
+  try {
+    const schema = z.object({
+      model: z.string(),
+      storage_gb: z.number().int().positive(),
+      p50_price: z.number().positive(),
+      p25_price: z.number().positive(),
+    });
+    const body = schema.parse(req.body);
+
+    const result = await pool.query(
+      `INSERT INTO user_pricing (model, storage_gb, p50_price, p25_price)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (model, storage_gb)
+       DO UPDATE SET p50_price = $3, p25_price = $4, updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [body.model, body.storage_gb, body.p50_price, body.p25_price]
+    );
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+// Aggiornamento batch (più righe in una volta)
+app.post('/api/pricing/batch', async (req, res) => {
+  try {
+    const schema = z.array(z.object({
+      model: z.string(),
+      storage_gb: z.number().int().positive(),
+      p50_price: z.number().positive(),
+      p25_price: z.number().positive(),
+    }));
+    const items = schema.parse(req.body);
+
+    let upserted = 0;
+    for (const item of items) {
+      await pool.query(
+        `INSERT INTO user_pricing (model, storage_gb, p50_price, p25_price)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (model, storage_gb)
+         DO UPDATE SET p50_price = $3, p25_price = $4, updated_at = CURRENT_TIMESTAMP`,
+        [item.model, item.storage_gb, item.p50_price, item.p25_price]
+      );
+      upserted++;
+    }
+
+    res.json({ success: true, upserted });
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+// Elimina un prezzo
+app.delete('/api/pricing/:id', async (req, res) => {
+  try {
+    const result = await pool.query(`DELETE FROM user_pricing WHERE id = $1 RETURNING *`, [req.params.id]);
+    if (result.rowCount === 0) {
+      res.status(404).json({ success: false, error: 'Prezzo non trovato' });
+      return;
+    }
+    res.json({ success: true, deleted: result.rows[0] });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 11. LISTINGS CON FLIPPING SCORE (Arricchiti con dati pricing)
+// ═══════════════════════════════════════════════════════════════════
+
+app.get('/api/listings/scored', async (req, res) => {
+  try {
+    const { model, storageGb, maxPrice, condition } = req.query;
+    let query = `
+      SELECT 
+        l.id as listing_id,
+        l.marketplace,
+        l.title,
+        l.description,
+        l.url,
+        l.price,
+        l.model,
+        l.storage_gb,
+        l.battery_health_pct,
+        l.condition,
+        l.images,
+        l.published_at,
+        l.created_at,
+        l.has_original_box,
+        l.has_receipt_or_invoice,
+        l.is_locked,
+        up.p50_price,
+        up.p25_price
+      FROM listings l
+      LEFT JOIN user_pricing up ON l.model::text = up.model::text AND l.storage_gb = up.storage_gb
+      WHERE 1=1
+    `;
+    
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (model) {
+      query += ` AND l.model = $${paramIndex++}`;
+      params.push(model);
+    }
+    if (storageGb) {
+      query += ` AND l.storage_gb = $${paramIndex++}`;
+      params.push(Number(storageGb));
+    }
+    if (maxPrice) {
+      query += ` AND l.price <= $${paramIndex++}`;
+      params.push(Number(maxPrice));
+    }
+    if (condition) {
+      query += ` AND l.condition = $${paramIndex++}`;
+      params.push(condition);
+    }
+
+    query += ` ORDER BY l.published_at DESC NULLS LAST, l.created_at DESC LIMIT 200`;
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, count: result.rowCount, data: result.rows });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.listen(port, () => {
   console.log(`[API Server] Running on port ${port}`);
 });
